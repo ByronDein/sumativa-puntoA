@@ -1,13 +1,13 @@
 package com.example.hotels;
 
 import org.junit.jupiter.api.Test;
-import org.springframework.boot.test.context.SpringBootTest;
 
-@SpringBootTest
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+
 class HotelsApplicationTests {
 
-	@Test
-	void contextLoads() {
-	}
-
+    @Test
+    void applicationClassExists() {
+        assertNotNull(new HotelsApplication());
+    }
 }

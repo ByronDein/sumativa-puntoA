@@ -1,11 +1,14 @@
 package com.example.hotels.controller;
 
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.hateoas.CollectionModel;
+import org.springframework.hateoas.EntityModel;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -15,14 +18,15 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
-import com.example.hotels.exception.ResourceNotFoundException;
 
+import com.example.hotels.exception.ResourceNotFoundException;
 import com.example.hotels.model.Hotels;
 import com.example.hotels.service.HotelsService;
 
 import jakarta.validation.Valid;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+
+import static org.springframework.hateoas.server.mvc.WebMvcLinkBuilder.linkTo;
+import static org.springframework.hateoas.server.mvc.WebMvcLinkBuilder.methodOn;
 
 @RestController
 public class HotelsController {
@@ -33,21 +37,25 @@ public class HotelsController {
     private HotelsService hotelsService;
 
     @GetMapping("/hotels")
-    public ResponseEntity<List<Hotels>> getAllHotels() {
+    public ResponseEntity<CollectionModel<EntityModel<Hotels>>> getAllHotels() {
         log.info("Obteniendo la lista de todos los hoteles");
-        List<Hotels> list = hotelsService.getAllHotels();
-        return ResponseEntity.ok(list);
+        List<EntityModel<Hotels>> hoteles = hotelsService.getAllHotels().stream()
+                .map(this::toModel)
+                .collect(Collectors.toList());
+
+        return ResponseEntity.ok(CollectionModel.of(hoteles,
+                linkTo(methodOn(HotelsController.class).getAllHotels()).withSelfRel()));
     }
 
     @GetMapping("/hotels/{idHotel}")
-    public ResponseEntity<?> getHotelById(@PathVariable("idHotel") Long idHotel) {
+    public ResponseEntity<EntityModel<Hotels>> getHotelById(@PathVariable("idHotel") Long idHotel) {
         log.info("Buscando hotel con ID: {}", idHotel);
         Optional<Hotels> hotelOpt = hotelsService.getHotelById(idHotel);
         if (hotelOpt.isPresent()) {
-            return ResponseEntity.ok(hotelOpt.get());
+            return ResponseEntity.ok(toModel(hotelOpt.get()));
         }
 
-        throw new ResourceNotFoundException("No se encontro el Hotel con el id :" + idHotel + ". Verifique el ID e intente nuevamente.");
+        throw new ResourceNotFoundException("No se encontro el Hotel con el id: " + idHotel);
     }
 
     @PostMapping("/hotels")
@@ -74,7 +82,11 @@ public class HotelsController {
         hotelsService.deleteHotelById(idHotel);
         return ResponseEntity.noContent().build();
     }
+
+    private EntityModel<Hotels> toModel(Hotels hotel) {
+        return EntityModel.of(hotel,
+                linkTo(methodOn(HotelsController.class).getHotelById(hotel.getId())).withSelfRel(),
+                linkTo(methodOn(HotelsController.class).getAllHotels()).withRel("hotels"),
+                linkTo(methodOn(ReservasController.class).getReservasPorHotel(hotel.getId())).withRel("reservas"));
+    }
 }
-
-
-
